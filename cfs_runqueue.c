@@ -52,8 +52,11 @@ void inline remove_from_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t 
       runqueue->min = (uthread_struct_t *)n1->right->key;      
     }
   }
-
   RBDelete(runqueue->tree , uthread->node);
+  if( uthread->uthread_tid == 0) {
+    printf("Removed master\n");
+  }
+  uthread->node = runqueue->tree->nil;
   runqueue->num_threads--;
 }
 

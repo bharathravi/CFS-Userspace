@@ -58,7 +58,6 @@ static void generate_matrix(matrix_t *mat, int val)
 {
     
 	int i,j;
-        printf("etf\n");
 	mat->rows = SIZE;
 	mat->cols = SIZE;
 	for(i = 0; i < mat->rows;i++)
@@ -66,7 +65,6 @@ static void generate_matrix(matrix_t *mat, int val)
 		{	//printf("%d %d\n", i, j);
 			mat->m[i][j] = val;
 		}
-        printf("etf2\n");
 	return;
 }
 
@@ -107,12 +105,9 @@ static void * uthread_mulmat(void *p)
 	end_col = SIZE;
 #endif
 
-	printf("\nThread(id:%d, group:%d, cpu:%d) started",ptr->tid, ptr->gid, cpuid);
 #ifdef GT_THREADS
 	cpuid = kthread_cpu_map[kthread_apic_id()]->cpuid;
-	printf("\nThread(id:%d, group:%d, cpu:%d) started",ptr->tid, ptr->gid, cpuid);
 #else
-	printf( "\nThread(id:%d, group:%d) started",ptr->tid, ptr->gid);
 #endif
 
 	for(i = start_row; i < end_row; i++)
@@ -121,12 +116,8 @@ static void * uthread_mulmat(void *p)
 				ptr->_C->m[i][j] += ptr->_A->m[i][k] * ptr->_B->m[k][j];
 
 #ifdef GT_THREADS
-	fprintf(stderr, "\nThread(id:%d, group:%d, cpu:%d) finished (TIME : %lu s and %lu us)",
-			ptr->tid, ptr->gid, cpuid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 #else
 	gettimeofday(&tv2,NULL);
-	fprintf(stderr, "\nThread(id:%d, group:%d) finished (TIME : %lu s and %lu us)",
-			ptr->tid, ptr->gid, (tv2.tv_sec - tv1.tv_sec), (tv2.tv_usec - tv1.tv_usec));
 #endif
 
 #undef ptr
@@ -137,11 +128,9 @@ matrix_t A, B, C;
 
 static void init_matrices()
 {
-        printf("Gen\n");
 	generate_matrix(&A, 1);
 	generate_matrix(&B, 1);
 	generate_matrix(&C, 0);
-        printf("Done Gen\n");
 
 	return;
 }
@@ -158,12 +147,10 @@ int main()
 
 	gtthread_app_init();
 
-        printf("Initing\n");
 	init_matrices();
 //	print_matrix(&A);
 //	print_matrix(&B);
 //	print_matrix(&C);
-        printf("Starting\n");
 	gettimeofday(&tv1,NULL);
 
 	for(inx=0; inx<NUM_THREADS; inx++)

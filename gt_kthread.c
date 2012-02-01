@@ -243,6 +243,7 @@ static void ksched_announce_cosched_group()
 static void main_ksched_priority(int signo) {
 	kthread_context_t *cur_ctx;
   cur_ctx = kthread_cpu_map[kthread_apic_id()];
+  kthread_set_vtalrm(0);
   if(cur_ctx->master_thread) {
     if(sigsetjmp(cur_ctx->master_thread->uthread_env, 0)) {
     // XXX(CFS): Set a return point for the master thread, 
@@ -269,24 +270,9 @@ static void ksched_priority(int signo)
 
 	// kthread_block_signal(SIGVTALRM);
 	// kthread_block_signal(SIGUSR1);
-
-//	ksched_announce_cosched_group();
+        kthread_set_vtalrm(0);
 	cur_k_ctx = kthread_cpu_map[kthread_apic_id()];
-	KTHREAD_PRINT_SCHED_DEBUGINFO(cur_k_ctx, "VTALRM");
-
-	/* Relay the signal to all other virtual processors(kthreads) */
-//	for(inx=0; inx<GT_MAX_KTHREADS; inx++)
-//	{
-//		/* XXX: We can avoid the last check (tmp to cur) by
-//		 * temporarily marking cur as DONE. But chuck it !! */
-//		if((tmp_k_ctx = kthread_cpu_map[inx]) && (tmp_k_ctx != cur_k_ctx))
-//		{
-//			if(tmp_k_ctx->kthread_flags & KTHREAD_DONE)
-//				continue;
-//			/* tkill : send signal to specific threads */
-//			syscall(__NR_tkill, tmp_k_ctx->tid, SIGUSR1);
-//		}
-//	}
+        //printf("Timer for %d\n", cur_k_ctx->tid);
 
 	uthread_schedule(&sched_find_best_uthread);
 
@@ -307,10 +293,8 @@ static void gtthread_app_start(void *arg)
 
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	assert((k_ctx->cpu_apic_id == kthread_apic_id()));
-
-#if 0
-	printf("kthread (%d) ready to schedule", k_ctx->cpuid);
-#endif
+  
+        printf("%d starting\n", k_ctx->tid);
 	while(!(k_ctx->kthread_flags & KTHREAD_DONE))
 	{
 		__asm__ __volatile__ ("pause\n");
@@ -365,6 +349,17 @@ static void create_master_uthread(kthread_context_t* master_context, sigjmp_buf 
                 return -1;
         }
         u_new->uthread_stack.ss_size = UTHREAD_DEFAULT_SSIZE;
+
+        
+        {
+                ksched_shared_info_t *ksched_info = &ksched_shared_info;
+
+                gt_spin_lock(&ksched_info->ksched_lock);
+                u_new->uthread_tid = ksched_info->kthread_tot_uthreads++;
+                ksched_info->kthread_cur_uthreads++;
+                gt_spin_unlock(&ksched_info->ksched_lock);
+        }
+
         /* Queue the uthread for target-cpu. Let target-cpu take care of initialization. */
         kthread_runq = &(master_context->krunqueue);
         master_context->master_thread = u_new;
@@ -391,14 +386,13 @@ extern void gtthread_app_init()
 
         create_master_uthread(k_ctx_main, master_env);
 
-	kthread_init_vtalrm();
 
 	kthread_install_sighandler(SIGVTALRM, k_ctx_main->kthread_sched_timer);
 	//kthread_install_sighandler(SIGUSR1, k_ctx_main->kthread_sched_relay);
 
 	/* Num of logical processors (cpus/cores) */
 	num_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
-        num_cpus = 1;
+        num_cpus = 2;
 #if 0
 	fprintf(stderr, "Number of cores : %d\n", num_cores);
 #endif
@@ -440,6 +434,8 @@ yield_again:
 	/* app-func is called for main in gthread_app_exit */
 	k_ctx_main->kthread_app_func(NULL);
 #endif
+        printf("Init done\n");
+	kthread_init_vtalrm();
 	return;
 }
 
@@ -452,14 +448,12 @@ extern void gtthread_app_exit()
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	k_ctx->kthread_flags &= ~KTHREAD_DONE;
 
+        // No timer interrupts while we perform some cleanup.
 	kthread_set_vtalrm(0);
         gt_spin_lock(&(ksched_shared_info.ksched_lock));
         ksched_shared_info.app_exit = 1;
         gt_spin_unlock(&(ksched_shared_info.ksched_lock));
 
-        // Remove the master thread from runeueue, since I no longer care about running myself
-        k_ctx->master_thread = NULL;
-	kthread_unblock_signal(SIGVTALRM);
 
         printf("Exit sequence\n");
 	while(!(k_ctx->kthread_flags & KTHREAD_DONE))
@@ -473,7 +467,9 @@ extern void gtthread_app_exit()
 			continue;
 		}
                 if(k_ctx->master_thread) {
+                  printf("Done with master\n");
                   k_ctx->master_thread->uthread_state = UTHREAD_DONE;
+                  k_ctx->master_thread = NULL;
                 }
 		uthread_schedule(&sched_find_best_uthread);
 	}
@@ -481,7 +477,7 @@ extern void gtthread_app_exit()
 
 
 	while(ksched_shared_info.kthread_cur_uthreads)
-	{    printf("Waiting for others\n");
+	{    //printf("Waiting for others\n");
 		/* Main thread has to wait for other kthreads */
 		__asm__ __volatile__ ("pause\n");
 	}

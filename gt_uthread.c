@@ -124,7 +124,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	/* Signals used for cpu_thread scheduling */
 	// kthread_block_signal(SIGVTALRM);
 	// kthread_block_signal(SIGUSR1);
-
+        kthread_set_vtalrm(0);
 #if 0
 	fprintf(stderr, "uthread_schedule invoked !!\n");
 #endif
@@ -151,18 +151,16 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 //			kthread_runq->kthread_runqlock.holder = 0x01;
 //			TAILQ_INSERT_TAIL(kthread_zhead, u_obj, uthread_runq);
 //			gt_spin_unlock(&(kthread_runq->kthread_runqlock));
-	                printf("%d done with %d\n", kthread_runq, u_obj->uthread_tid);	
+                        if(u_obj->uthread_tid == 0) {
+                          printf("Mster finished\n");
+                        }
 			{
 				ksched_shared_info_t *ksched_info = &ksched_shared_info;	
-	                        printf("%d Locking %d Global: %d Local %d\n", kthread_runq, u_obj->uthread_tid, ksched_info->kthread_cur_uthreads, kthread_runq->runqueue->num_threads);	
 				gt_spin_lock(&ksched_info->ksched_lock);
 				ksched_info->kthread_cur_uthreads--;
-	                        printf("%d UnLocking %d Global: %d Local:%d\n", kthread_runq, u_obj->uthread_tid, ksched_info->kthread_cur_uthreads,  kthread_runq->runqueue->num_threads);	
 				gt_spin_unlock(&ksched_info->ksched_lock);
-	                        printf("%d All done%d\n", kthread_runq, u_obj->uthread_tid);	
 			}
 		} else if (u_obj->uthread_state & UTHREAD_YIELD) {
-                        printf("Some idiot yielding\n");
 			update_vruntime_to_max(u_obj, kthread_runq->runqueue);
 			u_obj->uthread_state = UTHREAD_RUNNABLE;
 			add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_obj);
@@ -178,24 +176,17 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				return;
 		}
 	}
-        if (kthread_runq->runqueue->num_threads == 0 && !kthread_runq->cur_uthread) {
-         // printf("%d still in sched with nothing to do\n", kthread_runq);
-        }
-
 	/* kthread_best_sched_uthread acquires kthread_runqlock. Dont lock it up when calling the function. */
 	if(!(u_obj = kthread_best_sched_uthread(kthread_runq)))
 	{
 		/* Done executing all uthreads. Return to main */
 		/* XXX: We can actually get rid of KTHREAD_DONE flag */
-		if(ksched_shared_info.kthread_tot_uthreads && !ksched_shared_info.kthread_cur_uthreads)
+		if(ksched_shared_info.app_exit)
 		{
-                  printf("%d done because %d %d\n",kthread_runq, ksched_shared_info.kthread_tot_uthreads, ksched_shared_info.kthread_cur_uthreads);
 			fprintf(stderr, "Quitting kthread (%d)\n", k_ctx->cpuid);
 			k_ctx->kthread_flags |= KTHREAD_DONE;
-		} else {
-           //       printf("%d Not done because %d %d but local %d\n",kthread_runq, ksched_shared_info.kthread_tot_uthreads, ksched_shared_info.kthread_cur_uthreads, kthread_runq->runqueue->num_threads);
-                }
-                
+		}
+                 
 		siglongjmp(k_ctx->kthread_env, 1);
 		return;
 	}
@@ -217,7 +208,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
         // to wake up after the thread has run for <fair_slice> amount of time, by
         // setting the VTALRM appropriately
         fair_slice = get_fair_slice(u_obj, kthread_runq->runqueue);
-	kthread_set_vtalrm(fair_slice);
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 
 	// Record time of entry to CPU
@@ -225,6 +215,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	u_obj->entry_to_cpu = now;
 
 	// Jump to the selected uthread context
+	kthread_set_vtalrm(fair_slice);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;
@@ -281,6 +272,7 @@ static void uthread_context_func(int signo)
 	cur_uthread->uthread_func(cur_uthread->uthread_arg);
 	cur_uthread->uthread_state = UTHREAD_DONE;
 
+        printf("%d is done on %d\n", cur_uthread->uthread_tid, kthread_runq);
 	uthread_schedule(&sched_find_best_uthread);
 	return;
 }
@@ -336,7 +328,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	kthread_runq = ksched_find_target(u_new);
 
 	*u_tid = u_new->uthread_tid;
-
+        printf("Adding %d to %d\n", u_new->uthread_tid, kthread_runq);
 	/* Queue the uthread for target-cpu. Let target-cpu take care of initialization. */
 	add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_new);
 
