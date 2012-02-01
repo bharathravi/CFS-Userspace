@@ -92,7 +92,7 @@ extern uthread_struct_t *sched_find_best_uthread(kthread_runqueue_t *kthread_run
   kthread_runq->kthread_runqlock.holder = 0x04;
 
   best_uthread = get_best_thread(runq); 
-
+  remove_from_cfs_runqueue(runq, best_uthread);
   gt_spin_unlock(&(kthread_runq->kthread_runqlock));
   return(best_uthread);
 }

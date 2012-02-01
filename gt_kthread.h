@@ -30,6 +30,11 @@ typedef struct __kthread_context
 	void (*kthread_runqueue_balance)(); /* balance across kthread runqueues */
 	sigjmp_buf kthread_env; /* kthread's env to jump to (when done scheduling) */
 
+
+        // XXX(CFS) A thread used only by the master kthread, to track the main() 
+        // thread that started the application.
+        uthread_struct_t* master_thread;
+
 	kthread_runqueue_t krunqueue;
 } kthread_context_t;
 
@@ -62,6 +67,7 @@ typedef struct __ksched_shared_info
 
 	gt_spinlock_t __malloc_lock; /* making malloc thread-safe (check particular glibc to see if needed) */
 	unsigned int reserved[2];
+        cfs_runqueue_t* master;
 } ksched_shared_info_t;
 
 

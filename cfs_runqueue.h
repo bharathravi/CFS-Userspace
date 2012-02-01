@@ -15,7 +15,7 @@ typedef struct __cfs_runqueue {
   uthread_struct_t* min;
 
   // Count of number of threads in this runqueue
-  int num_threads;
+  unsigned int num_threads;
     
 } cfs_runqueue_t;
 

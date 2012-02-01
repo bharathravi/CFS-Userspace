@@ -56,15 +56,17 @@ struct timeval tv1;
 
 static void generate_matrix(matrix_t *mat, int val)
 {
-
+    
 	int i,j;
+        printf("etf\n");
 	mat->rows = SIZE;
 	mat->cols = SIZE;
 	for(i = 0; i < mat->rows;i++)
 		for( j = 0; j < mat->cols; j++ )
-		{
+		{	//printf("%d %d\n", i, j);
 			mat->m[i][j] = val;
 		}
+        printf("etf2\n");
 	return;
 }
 
@@ -135,9 +137,11 @@ matrix_t A, B, C;
 
 static void init_matrices()
 {
+        printf("Gen\n");
 	generate_matrix(&A, 1);
 	generate_matrix(&B, 1);
 	generate_matrix(&C, 0);
+        printf("Done Gen\n");
 
 	return;
 }
@@ -154,11 +158,12 @@ int main()
 
 	gtthread_app_init();
 
+        printf("Initing\n");
 	init_matrices();
 //	print_matrix(&A);
 //	print_matrix(&B);
 //	print_matrix(&C);
-
+        printf("Starting\n");
 	gettimeofday(&tv1,NULL);
 
 	for(inx=0; inx<NUM_THREADS; inx++)

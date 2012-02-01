@@ -18,6 +18,7 @@ typedef unsigned int uthread_group_t;
 #define UTHREAD_DONE 0x10
 #define UTHREAD_YIELD 0x20
 
+#define UTHREAD_DEFAULT_SSIZE (16 * 1024)
 /* uthread struct : has all the uthread context info */
 typedef struct uthread_struct
 {

@@ -16,6 +16,7 @@ void uthread_fn() {
 
 int main() {
 //  uthread_arg_t *args;
+  printf("%lu", sizeof(long));
   uthread_fn();
   return 0;
 }

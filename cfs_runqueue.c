@@ -20,7 +20,7 @@ void inline initialize_cfs_runqueue(cfs_runqueue_t *runqueue) {
 void inline add_to_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t *uthread) {
   rb_red_blk_node* node = RBTreeInsert(runqueue->tree, uthread, &(uthread->uthread_tid));
   uthread->node = node;
-  runqueue->num_threads = runqueue->num_threads+ 1;
+  runqueue->num_threads++;
   //TODO: All of this should be moved out of this function, and into uthread_schedule 
    //Shortcut, update min
   if (runqueue->min) {
