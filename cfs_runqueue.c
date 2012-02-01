@@ -53,11 +53,9 @@ void inline remove_from_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t 
     }
   }
   RBDelete(runqueue->tree , uthread->node);
-  if( uthread->uthread_tid == 0) {
-    printf("Removed master\n");
-  }
   uthread->node = runqueue->tree->nil;
   runqueue->num_threads--;
+  return;
 }
 
 // Determines which the best thread to schedule is. This is done by picking

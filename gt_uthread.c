@@ -135,7 +135,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	kthread_runq = &(k_ctx->krunqueue);
 
-        printf("%d entering\n", k_ctx->tid);
+        //printf("%d entering\n", k_ctx->tid);
 	if((u_obj = kthread_runq->cur_uthread))
 	{  
 		/*Go through the runq and schedule the next thread to run */
@@ -143,18 +143,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		
 		if(u_obj->uthread_state & (UTHREAD_DONE | UTHREAD_CANCELLED))
 		{   
-			/* XXX: Inserting uthread into zombie queue is causing improper
-			 * cleanup/exit of uthread (core dump) */
-//			uthread_head_t * kthread_zhead = &(kthread_runq->zombie_uthreads);
-//			gt_spin_lock(&(kthread_runq->kthread_runqlock));
-//			kthread_runq->kthread_runqlock.holder = 0x01;
-//			TAILQ_INSERT_TAIL(kthread_zhead, u_obj, uthread_runq);
-//			gt_spin_unlock(&(kthread_runq->kthread_runqlock));
-                        if(u_obj->uthread_tid == 0) {
-                          printf("Mster finished\n");
-                        } else{
-                          printf("%d wrapping up\n", u_obj->uthread_tid);
-                        }
 			{
 				ksched_shared_info_t *ksched_info = &ksched_shared_info;	
 				gt_spin_lock(&ksched_info->ksched_lock);
@@ -177,7 +165,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				return;
 		}
 	}
-//        printf("%d %d still here\n", k_ctx->tid, kthread_runq);
 	/* kthread_best_sched_uthread acquires kthread_runqlock. Dont lock it up when calling the function. */
 	if(!(u_obj = kthread_best_sched_uthread(kthread_runq)))
 	{
@@ -186,23 +173,23 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		if(ksched_shared_info.app_exit)
 		{
 			fprintf(stderr, "Quitting kthread (%d) with globals:%d\n", k_ctx->cpuid, ksched_shared_info.kthread_cur_uthreads);
-			for (i=0; i <GT_MAX_CORES; ++i) {
-			    if(kthread_cpu_map[i]) {
-				debug = kthread_cpu_map[i];
-                                printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread);
-                                if (debug->krunqueue.cur_uthread) {
-                                  printf("%d Cur2: %d\n", debug->tid, debug->krunqueue.cur_uthread->uthread_tid);
-                                }
-				print_all(debug->krunqueue.runqueue->tree->root->left,debug->krunqueue.runqueue->tree);
-                            }
-                        }
+			//for (i=0; i <GT_MAX_CORES; ++i) {
+			//    if(kthread_cpu_map[i]) {
+			//	debug = kthread_cpu_map[i];
+                                //printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread);
+                                //if (debug->krunqueue.cur_uthread) {
+                                //  printf("%d Cur2: %d\n", debug->tid, debug->krunqueue.cur_uthread->uthread_tid);
+                               // }
+			//	print_all(debug->krunqueue.runqueue->tree->root->left,debug->krunqueue.runqueue->tree);
+                        //    }
+                //        }
                         
 			k_ctx->kthread_flags |= KTHREAD_DONE;
 		}
                  
 		siglongjmp(k_ctx->kthread_env, 1);
 	}
-        printf("%d chose %d\n", k_ctx->tid, u_obj->uthread_tid);
+      //  printf("%d chose %d\n", k_ctx->tid, u_obj->uthread_tid);
        
 	kthread_runq->cur_uthread = u_obj;
 	if((u_obj->uthread_state == UTHREAD_INIT) && (uthread_init(u_obj)))
@@ -227,7 +214,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	// Jump to the selected uthread context
 	kthread_set_vtalrm(fair_slice);
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
-        printf("%d leaving to %d\n", k_ctx->tid, u_obj->uthread_tid);
+        //printf("%d leaving to %d\n", k_ctx->tid, u_obj->uthread_tid);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;

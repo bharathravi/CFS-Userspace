@@ -298,14 +298,14 @@ rb_red_blk_node* TreeSuccessor(rb_red_blk_tree* tree,rb_red_blk_node* x) {
 
   if (nil != (y = x->right)) { /* assignment to y is intentional */
     while(y->left != nil) { /* returns the minium of the right subtree of x */
-      printf("L\n");
+      //printf("L\n");
       y=y->left;
     }
     return(y);
   } else {
     y=x->parent;
     while(x == y->right) { /* sentinel used instead of checking for nil */
-      printf("R\n");
+     // printf("R\n");
       x=y;
       y=y->parent;
     }

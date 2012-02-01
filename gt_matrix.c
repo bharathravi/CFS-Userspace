@@ -13,17 +13,17 @@
 #include "gt_include.h"
 
 
-#define ROWS 512
-#define COLS ROWS
-#define SIZE COLS
+//#define ROWS 512
+//#define COLS ROWS
+//#define SIZE COLS
 
-#define NUM_CPUS 10
-#define NUM_GROUPS NUM_CPUS
-#define PER_GROUP_COLS (SIZE/NUM_GROUPS)
+//#define NUM_CPUS 10
+//#define NUM_GROUPS NUM_CPUS
+//#define PER_GROUP_COLS (SIZE/NUM_GROUPS)
 
-#define NUM_THREADS 32
-#define PER_THREAD_ROWS (SIZE/NUM_THREADS)
-
+#define NUM_THREADS 32 // Number of threads per matrix
+//#define PER_THREAD_ROWS (SIZE/NUM_THREADS)
+#define MAXSIZE 512
 
 /* A[SIZE][SIZE] X B[SIZE][SIZE] = C[SIZE][SIZE]
  * Let T(g, t) be thread 't' in group 'g'. 
@@ -32,7 +32,7 @@
 
 typedef struct matrix
 {
-	int m[SIZE][SIZE];
+	int m[MAXSIZE][MAXSIZE];
 
 	int rows;
 	int cols;
@@ -49,17 +49,17 @@ typedef struct __uthread_arg
 	unsigned int gid;
 	int start_row; /* start_row -> (start_row + PER_THREAD_ROWS) */
 	int start_col; /* start_col -> (start_col + PER_GROUP_COLS) */
-	
+	int matrix_size;	
 }uthread_arg_t;
 	
 struct timeval tv1;
 
-static void generate_matrix(matrix_t *mat, int val)
+static void generate_matrix(matrix_t *mat, int val, int size)
 {
     
 	int i,j;
-	mat->rows = SIZE;
-	mat->cols = SIZE;
+	mat->rows = size;
+	mat->cols = size;
 	for(i = 0; i < mat->rows;i++)
 		for( j = 0; j < mat->cols; j++ )
 		{	//printf("%d %d\n", i, j);
@@ -68,13 +68,13 @@ static void generate_matrix(matrix_t *mat, int val)
 	return;
 }
 
-static void print_matrix(matrix_t *mat)
+static void print_matrix(matrix_t *mat, int size)
 {
 	int i, j;
 
-	for(i=0;i<SIZE;i++)
+	for(i=0;i<size;i++)
 	{
-		for(j=0;j<SIZE;j++)
+		for(j=0;j<size;j++)
 			printf(" %d ",mat->m[i][j]);
 		printf("\n");
 	}
@@ -95,14 +95,14 @@ static void * uthread_mulmat(void *p)
 	i=0; j= 0; k=0;
 
 	start_row = ptr->start_row;
-	end_row = (ptr->start_row + PER_THREAD_ROWS);
+	end_row = (ptr->start_row + ptr->matrix_size/NUM_THREADS);
 
 #ifdef GT_GROUP_SPLIT
 	start_col = ptr->start_col;
-	end_col = (ptr->start_col + PER_THREAD_ROWS);
+	end_col = (ptr->start_col + ptr->matrix_size/NUM_THREADS);
 #else
 	start_col = 0;
-	end_col = SIZE;
+	end_col = ptr->matrix_size;
 #endif
 
 #ifdef GT_THREADS
@@ -112,7 +112,7 @@ static void * uthread_mulmat(void *p)
 
 	for(i = start_row; i < end_row; i++)
 		for(j = start_col; j < end_col; j++)
-			for(k = 0; k < SIZE; k++) {
+			for(k = 0; k < ptr->matrix_size; k++) {
 				ptr->_C->m[i][j] += ptr->_A->m[i][k] * ptr->_B->m[k][j];
                         }
 
@@ -125,20 +125,25 @@ static void * uthread_mulmat(void *p)
 	return 0;
 }
 
-matrix_t A, B, C;
 
-static void init_matrices()
-{
-	generate_matrix(&A, 1);
-	generate_matrix(&B, 1);
-	generate_matrix(&C, 0);
+// Four matrices, of sizes 32, 64, 128, and 256
+matrix_t A[4], B[4], C[4];
+int sizes[4] = {32, 64, 128, 256};
 
+
+static void init_matrices() {
+  int i = 0;
+  for (i=0; i<4; ++i) {
+	generate_matrix(&A[i], 1, sizes[i]);
+	generate_matrix(&B[i], 1, sizes[i]);
+	generate_matrix(&C[i], 0, sizes[i]);
+  }
 	return;
 }
 
 
-uthread_arg_t uargs[NUM_THREADS];
-uthread_t utids[NUM_THREADS];
+uthread_arg_t uargs[NUM_THREADS*4];
+uthread_t utids[NUM_THREADS*4];
 
 int main()
 {
@@ -153,32 +158,36 @@ int main()
 //	print_matrix(&B);
 //	print_matrix(&C);
 	gettimeofday(&tv1,NULL);
-
-	for(inx=0; inx<NUM_THREADS; inx++)
+	j = 0;
+	for (i=0; i<4; ++i) 
 	{
-		uarg = &uargs[inx];
-		uarg->_A = &A;
-		uarg->_B = &B;
-		uarg->_C = &C;
+		for(inx=0; inx<NUM_THREADS; inx++)
+		{
+			uarg = &uargs[inx];
+			uarg->_A = &A[i];
+			uarg->_B = &B[i];
+			uarg->_C = &C[i];
 
-		uarg->tid = inx;
+			uarg->tid = inx;
 
-		uarg->gid = (inx % NUM_GROUPS);
+			uarg->gid = 0;  // All in the same griup
+                        uarg->matrix_size = sizes[i];
 
-		uarg->start_row = (inx * PER_THREAD_ROWS);
+			uarg->start_row = (inx * sizes[i]/NUM_THREADS);
 #ifdef GT_GROUP_SPLIT
 		/* Wanted to split the columns by groups !!! */
-		uarg->start_col = (uarg->gid * PER_GROUP_COLS);
+			uarg->start_col = (uarg->gid * PER_GROUP_COLS);
 #endif
 
-		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid);
+			uthread_create(&utids[j], uthread_mulmat, uarg, uarg->gid);
+			j++;
+		}
 	}
-
-	for(i=0; i < 100000; ++i) {
-		for(j=0; j<9000; ++j) {
-
-                }
-        }
+//	for(i=0; i < 100000; ++i) {
+//		for(j=0; j<9000; ++j) {
+//
+//                }
+//        }
 
 	gtthread_app_exit();
 

@@ -25,7 +25,7 @@ void gt_actual_spinlock(volatile int * spinlock)
 	int sp_val = 1;
  
 	while(sp_val)
-	{
+	{  //printf("Waiting for lock\n");
 		__asm__ __volatile__ ("pause\n");
 		if(!*((volatile int *)spinlock))
 		{

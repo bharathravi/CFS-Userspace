@@ -248,7 +248,7 @@ static void ksched_priority(int signo)
 	// kthread_block_signal(SIGUSR1);
         kthread_set_vtalrm(0);
 	cur_k_ctx = kthread_cpu_map[kthread_apic_id()];
-        printf("Timer for %d\n", cur_k_ctx->tid);
+        //printf("Timer for %d\n", cur_k_ctx->tid);
 
 	uthread_schedule(&sched_find_best_uthread);
 
@@ -455,7 +455,7 @@ extern void gtthread_app_exit()
 		/* Main thread has to wait for other kthreads */
 		__asm__ __volatile__ ("pause\n");
 	}
-        printf("I'm home free\n");
+        printf("I'm home free %d\n", ksched_shared_info.kthread_tot_uthreads);
 	return;	
 }
 

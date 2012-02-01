@@ -11,7 +11,7 @@ int uthread_fn(void * args) {
    //   }
     }
   }
-  printf("Hello world.\n");
+//  printf("Hello world.\n");
 }
 
 int uthread_fn2(void * args) {
@@ -23,7 +23,7 @@ int uthread_fn2(void * args) {
    //   }
     }
   }
-  printf("Hello all.\n");
+//  printf("Hello all.\n");
 }
 
 int main() {
@@ -31,10 +31,10 @@ int main() {
   uthread_t utid[10] = {0,1,2,3,4,5,6,7,8,9,10};
   int i = 0;
   gtthread_app_init();
-  for (i = 0; i < 20; ++i) {
+  for (i = 0; i < 128; ++i) {
     uthread_create(&utid[0], uthread_fn, NULL, 0);
   }
-  uthread_create(&utid[1], uthread_fn2, NULL, 0);
+  //uthread_create(&utid[1], uthread_fn2, NULL, 0);
   gtthread_app_exit();
   return 0;
 }
