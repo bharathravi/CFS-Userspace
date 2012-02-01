@@ -113,6 +113,7 @@ static int uthread_init(uthread_struct_t *u_new)
 	return 0;
 }
 
+
 extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kthread_runqueue_t *))
 {
 	kthread_context_t *k_ctx;
@@ -134,7 +135,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	kthread_runq = &(k_ctx->krunqueue);
 
-//        printf("%d entering\n", k_ctx->tid);
+        printf("%d entering\n", k_ctx->tid);
 	if((u_obj = kthread_runq->cur_uthread))
 	{  
 		/*Go through the runq and schedule the next thread to run */
@@ -151,6 +152,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 //			gt_spin_unlock(&(kthread_runq->kthread_runqlock));
                         if(u_obj->uthread_tid == 0) {
                           printf("Mster finished\n");
+                        } else{
+                          printf("%d wrapping up\n", u_obj->uthread_tid);
                         }
 			{
 				ksched_shared_info_t *ksched_info = &ksched_shared_info;	
@@ -188,7 +191,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				debug = kthread_cpu_map[i];
                                 printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread);
                                 if (debug->krunqueue.cur_uthread) {
-                                  printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread->uthread_tid);
+                                  printf("%d Cur2: %d\n", debug->tid, debug->krunqueue.cur_uthread->uthread_tid);
                                 }
 				print_all(debug->krunqueue.runqueue->tree->root->left,debug->krunqueue.runqueue->tree);
                             }
@@ -198,9 +201,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		}
                  
 		siglongjmp(k_ctx->kthread_env, 1);
-		return;
 	}
-//        printf("%d chose %d\n", k_ctx->tid, u_obj->uthread_tid);
+        printf("%d chose %d\n", k_ctx->tid, u_obj->uthread_tid);
        
 	kthread_runq->cur_uthread = u_obj;
 	if((u_obj->uthread_state == UTHREAD_INIT) && (uthread_init(u_obj)))
@@ -225,7 +227,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	// Jump to the selected uthread context
 	kthread_set_vtalrm(fair_slice);
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
-//        printf("%d jumpting to %d\n", k_ctx->tid, u_obj->uthread_tid);
+        printf("%d leaving to %d\n", k_ctx->tid, u_obj->uthread_tid);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;
@@ -263,7 +265,7 @@ static void uthread_context_func(int signo)
 
 	kthread_runq = &(kthread_cpu_map[kthread_apic_id()]->krunqueue);
 
-	printf("..... uthread_context_func .....\n");
+	printf("..... Initializing uthread_context_func for %d .....\n",kthread_runq->cur_uthread->uthread_tid);
 	/* kthread->cur_uthread points to newly created uthread */
 	if(!sigsetjmp(kthread_runq->cur_uthread->uthread_env,0))
 	{
@@ -275,6 +277,7 @@ static void uthread_context_func(int signo)
 		return;
 	}
 
+	printf("..... Actual uthread_context_func .....for %d\n", kthread_runq->cur_uthread->uthread_tid);
 	/* UTHREAD_RUNNING : siglongjmp was executed. */
 	cur_uthread = kthread_runq->cur_uthread;
 	assert(cur_uthread->uthread_state == UTHREAD_RUNNING);
