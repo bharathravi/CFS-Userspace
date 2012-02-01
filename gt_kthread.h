@@ -59,7 +59,7 @@ typedef struct __ksched_shared_info
 	unsigned int uthread_group_penalty; /* (M) : penalty for co-scheduling a lower priority uthread */
 	unsigned int kthread_tot_uthreads; /* (M) : Set if atleast one uthread was created */
 	unsigned int kthread_cur_uthreads; /* (M) : Current uthreads (over all kthreads) */
-
+        unsigned int app_exit;
 	unsigned short last_ugroup_kthread[MAX_UTHREAD_GROUPS]; /* (M) : Target cpu for next uthread from group */
 
 	gt_spinlock_t ksched_lock; /* global lock for updating above counters */

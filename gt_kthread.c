@@ -153,6 +153,7 @@ static inline void ksched_info_init(ksched_shared_info_t *ksched_info)
 	gt_spinlock_init(&(ksched_info->ksched_lock));
 	gt_spinlock_init(&(ksched_info->uthread_init_lock));
 	gt_spinlock_init(&(ksched_info->__malloc_lock));
+        ksched_info->app_exit = 0;
 	return;
 }
 
@@ -367,7 +368,8 @@ static void create_master_uthread(kthread_context_t* master_context, sigjmp_buf 
         /* Queue the uthread for target-cpu. Let target-cpu take care of initialization. */
         kthread_runq = &(master_context->krunqueue);
         master_context->master_thread = u_new;
-        add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_new);
+
+        master_context->krunqueue.cur_uthread = u_new;
        return;
 }
 
@@ -396,7 +398,7 @@ extern void gtthread_app_init()
 
 	/* Num of logical processors (cpus/cores) */
 	num_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
-	num_cpus = 1;
+        num_cpus = 1;
 #if 0
 	fprintf(stderr, "Number of cores : %d\n", num_cores);
 #endif
@@ -450,10 +452,12 @@ extern void gtthread_app_exit()
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	k_ctx->kthread_flags &= ~KTHREAD_DONE;
 
-	kthread_block_signal(SIGVTALRM);
-        printf("Removing master\n");
+	kthread_set_vtalrm(0);
+        gt_spin_lock(&(ksched_shared_info.ksched_lock));
+        ksched_shared_info.app_exit = 1;
+        gt_spin_unlock(&(ksched_shared_info.ksched_lock));
+
         // Remove the master thread from runeueue, since I no longer care about running myself
-        rem_from_runqueue(k_ctx->krunqueue.runqueue, &(k_ctx->krunqueue.kthread_runqlock), k_ctx->master_thread);
         k_ctx->master_thread = NULL;
 	kthread_unblock_signal(SIGVTALRM);
 
@@ -466,14 +470,11 @@ extern void gtthread_app_exit()
 			/* siglongjmp to this point is done when there
 			 * are no more uthreads to schedule.*/
 			/* XXX: gtthread app cleanup has to be done. */
-                  if ((k_ctx->kthread_flags & KTHREAD_DONE)) {
-                    printf("Main done\n");
-                  } else {
-                   printf("Continuing main\n");
-                }
 			continue;
 		}
-
+                if(k_ctx->master_thread) {
+                  k_ctx->master_thread->uthread_state = UTHREAD_DONE;
+                }
 		uthread_schedule(&sched_find_best_uthread);
 	}
        printf("Last mile for main\n");
