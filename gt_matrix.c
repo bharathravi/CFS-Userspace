@@ -112,8 +112,9 @@ static void * uthread_mulmat(void *p)
 
 	for(i = start_row; i < end_row; i++)
 		for(j = start_col; j < end_col; j++)
-			for(k = 0; k < SIZE; k++)
+			for(k = 0; k < SIZE; k++) {
 				ptr->_C->m[i][j] += ptr->_A->m[i][k] * ptr->_B->m[k][j];
+                        }
 
 #ifdef GT_THREADS
 #else
@@ -142,7 +143,7 @@ uthread_t utids[NUM_THREADS];
 int main()
 {
 	uthread_arg_t *uarg;
-	int inx;
+	int inx, i ,j;
 
 
 	gtthread_app_init();
@@ -172,6 +173,12 @@ int main()
 
 		uthread_create(&utids[inx], uthread_mulmat, uarg, uarg->gid);
 	}
+
+	for(i=0; i < 100000; ++i) {
+		for(j=0; j<2000; ++j) {
+
+                }
+        }
 
 	gtthread_app_exit();
 

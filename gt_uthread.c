@@ -120,6 +120,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	uthread_struct_t *u_obj;
 	long fair_slice;
         struct timeval now;
+        int i=0;
+	kthread_context_t *debug;
 
 	/* Signals used for cpu_thread scheduling */
 	// kthread_block_signal(SIGVTALRM);
@@ -132,13 +134,9 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	kthread_runq = &(k_ctx->krunqueue);
 
-        if (kthread_runq->runqueue->num_threads == 0 && !kthread_runq->cur_uthread) {
-        //  printf("%d entering sched with nothing to do\n", kthread_runq);
-        } else {
-        }
-
+//        printf("%d entering\n", k_ctx->tid);
 	if((u_obj = kthread_runq->cur_uthread))
-	{
+	{  
 		/*Go through the runq and schedule the next thread to run */
 		kthread_runq->cur_uthread = NULL;
 		
@@ -176,6 +174,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				return;
 		}
 	}
+//        printf("%d %d still here\n", k_ctx->tid, kthread_runq);
 	/* kthread_best_sched_uthread acquires kthread_runqlock. Dont lock it up when calling the function. */
 	if(!(u_obj = kthread_best_sched_uthread(kthread_runq)))
 	{
@@ -183,15 +182,25 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		/* XXX: We can actually get rid of KTHREAD_DONE flag */
 		if(ksched_shared_info.app_exit)
 		{
-			fprintf(stderr, "Quitting kthread (%d)\n", k_ctx->cpuid);
+			fprintf(stderr, "Quitting kthread (%d) with globals:%d\n", k_ctx->cpuid, ksched_shared_info.kthread_cur_uthreads);
+			for (i=0; i <GT_MAX_CORES; ++i) {
+			    if(kthread_cpu_map[i]) {
+				debug = kthread_cpu_map[i];
+                                printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread);
+                                if (debug->krunqueue.cur_uthread) {
+                                  printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread->uthread_tid);
+                                }
+				print_all(debug->krunqueue.runqueue->tree->root->left,debug->krunqueue.runqueue->tree);
+                            }
+                        }
+                        
 			k_ctx->kthread_flags |= KTHREAD_DONE;
 		}
                  
 		siglongjmp(k_ctx->kthread_env, 1);
 		return;
 	}
-        // Pop the chosen thread out of the runqueue
-        // TODO Maybe do this in the "get_best_thread" fn itself
+//        printf("%d chose %d\n", k_ctx->tid, u_obj->uthread_tid);
        
 	kthread_runq->cur_uthread = u_obj;
 	if((u_obj->uthread_state == UTHREAD_INIT) && (uthread_init(u_obj)))
@@ -208,7 +217,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
         // to wake up after the thread has run for <fair_slice> amount of time, by
         // setting the VTALRM appropriately
         fair_slice = get_fair_slice(u_obj, kthread_runq->runqueue);
-	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 
 	// Record time of entry to CPU
 	gettimeofday(&now, 0);
@@ -216,6 +224,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 	// Jump to the selected uthread context
 	kthread_set_vtalrm(fair_slice);
+	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
+//        printf("%d jumpting to %d\n", k_ctx->tid, u_obj->uthread_tid);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;

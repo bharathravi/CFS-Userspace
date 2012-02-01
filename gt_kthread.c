@@ -244,13 +244,15 @@ static void main_ksched_priority(int signo) {
 	kthread_context_t *cur_ctx;
   cur_ctx = kthread_cpu_map[kthread_apic_id()];
   kthread_set_vtalrm(0);
-  if(cur_ctx->master_thread) {
-    if(sigsetjmp(cur_ctx->master_thread->uthread_env, 0)) {
+  printf("Master timer\n");
+//  if(cur_ctx->master_thread) {
+//    if(sigsetjmp(cur_ctx->master_thread->uthread_env, 0)) {
     // XXX(CFS): Set a return point for the master thread, 
     // if this is the master kernel thread
+//      printf("Execing master\n");
       return;
-    }
-  }
+//    }
+//  }
 
   ksched_priority(signo);
 
@@ -387,6 +389,7 @@ extern void gtthread_app_init()
         create_master_uthread(k_ctx_main, master_env);
 
 
+	kthread_init_vtalrm();
 	kthread_install_sighandler(SIGVTALRM, k_ctx_main->kthread_sched_timer);
 	//kthread_install_sighandler(SIGUSR1, k_ctx_main->kthread_sched_relay);
 
@@ -435,7 +438,6 @@ yield_again:
 	k_ctx_main->kthread_app_func(NULL);
 #endif
         printf("Init done\n");
-	kthread_init_vtalrm();
 	return;
 }
 

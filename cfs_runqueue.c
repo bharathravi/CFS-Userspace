@@ -2,7 +2,7 @@
 #include "gt_kthread.h"
 
 
-static void print_all(rb_red_blk_node* node, rb_red_blk_tree* tree);
+void print_all(rb_red_blk_node* node, rb_red_blk_tree* tree);
 
 //  Initializes the Red black tree and the runtime period for the CFS Runqueue
 void inline initialize_cfs_runqueue(cfs_runqueue_t *runqueue) {
@@ -160,7 +160,7 @@ static inline uthread_struct_t* get_rightmost(rb_red_blk_tree* tree) {
 }
 
 
-static void print_all(rb_red_blk_node* node, rb_red_blk_tree* tree) {
+void print_all(rb_red_blk_node* node, rb_red_blk_tree* tree) {
   uthread_struct_t* t;
   if (node == tree->nil) {
     return;
