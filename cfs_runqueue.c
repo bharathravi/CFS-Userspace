@@ -18,8 +18,7 @@ void inline initialize_cfs_runqueue(cfs_runqueue_t *runqueue) {
 // Adds a new User thread to the CFS runqeue. This is done by adding the 
 // thread to the Red-Black tree
 void inline add_to_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t *uthread) {
-  rb_red_blk_node* node = RBTreeInsert(runqueue->tree, uthread, &(uthread->uthread_tid));
-  uthread->node = node;
+  uthread->node = RBTreeInsert(runqueue->tree, uthread, &(uthread->uthread_tid));
   runqueue->num_threads++;
   //TODO: All of this should be moved out of this function, and into uthread_schedule 
    //Shortcut, update min
@@ -95,7 +94,8 @@ int compare_virtual_runtimes(const void* a,const void* b) {
 
 
 void destroy_node(void* a) {
-  //Do nothing
+  uthread_struct_t *uthread = (uthread_struct_t *)a;
+  uthread->node = NULL;  
 }
 
 

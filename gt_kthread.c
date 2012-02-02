@@ -114,6 +114,10 @@ static void kthread_init(kthread_context_t *k_ctx)
         //XXX(CFS): Slave kernel threads do not own a master thread of their own.
         k_ctx->master_thread = NULL;
 
+	//XXX(CFS): We do not want to be interrupted by timers at the beginning.
+        k_ctx->do_not_disturb = 1;
+
+            
 	/* Initialize kthread runqueue */
 
 	kthread_init_runqueue(&(k_ctx->krunqueue));
@@ -190,46 +194,6 @@ extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *u_obj)
 	return(&(kthread_cpu_map[target_cpu]->krunqueue));
 }
 
-static void ksched_cosched(int signal)
-{
-	/* [1] Reads the uthread-select-criterion set by schedule-master.
-	 * [2] Read NULL. Jump to [5]
-	 * [3] Tries to find a matching uthread.
-	 * [4] Found - Jump to [FOUND]
-	 * [5] Tries to find the best uthread (by DEFAULT priority method) 
-	 * [6] Found - Jump to [FOUND]
-	 * [NOT FOUND] Return.
-	 * [FOUND] Return. 
-	 * [[NOTE]] {uthread_select_criterion == match_uthread_group_id} */
-
-	kthread_context_t *cur_k_ctx;
-
-	// kthread_block_signal(SIGVTALRM);
-	// kthread_block_signal(SIGUSR1);
-
-	/* This virtual processor (thread) was not
-	 * picked by kernel for vtalrm signal.
-	 * USR1 signal has been relayed to it. */
-
-	cur_k_ctx = kthread_cpu_map[kthread_apic_id()];
-	KTHREAD_PRINT_SCHED_DEBUGINFO(cur_k_ctx, "RELAY(USR)");
-
-#ifdef CO_SCHED
-	uthread_schedule(&sched_find_best_uthread_group);
-#else
-	uthread_schedule(&sched_find_best_uthread);
-#endif
-
-	// kthread_unblock_signal(SIGVTALRM);
-	// kthread_unblock_signal(SIGUSR1);
-	return;
-}
-
-static void ksched_announce_cosched_group()
-{
-	/* Set the current running uthread_group  */
-	return;
-}
 
 
 static void ksched_priority(int signo)
@@ -243,12 +207,22 @@ static void ksched_priority(int signo)
 	kthread_context_t *cur_k_ctx, *tmp_k_ctx;
 	pid_t pid;
 	int inx;
+        struct timeval now;
 
 	// kthread_block_signal(SIGVTALRM);
 	// kthread_block_signal(SIGUSR1);
-        kthread_set_vtalrm(0);
 	cur_k_ctx = kthread_cpu_map[kthread_apic_id()];
-        //printf("Timer for %d\n", cur_k_ctx->tid);
+
+	if (cur_k_ctx->do_not_disturb) {
+		// If the kthread is in a situation wher it should not be interrupted, simply return.
+		printf("%d DO NOT DISTURB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", cur_k_ctx->tid);                
+		return;
+	} else {
+		cur_k_ctx->do_not_disturb = 1;
+        }
+
+	gettimeofday(&now, 0);
+   //     printf("Timer for %d at %d %d\n", cur_k_ctx->tid, now.tv_sec, now.tv_usec);
 
 	uthread_schedule(&sched_find_best_uthread);
 
@@ -409,7 +383,9 @@ yield_again:
 	k_ctx_main->kthread_app_func(NULL);
 #endif
         printf("Init done\n");
-	kthread_init_vtalrm();
+        // Now, the main kthread is done with setup, and is okay with being interrupted.
+        k_ctx_main->do_not_disturb = 0;
+	kthread_init_vtalrm();        
 	return;
 }
 
@@ -420,10 +396,10 @@ extern void gtthread_app_exit()
 	kthread_context_t *k_ctx;
 
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
+        k_ctx->do_not_disturb = 1;
 	k_ctx->kthread_flags &= ~KTHREAD_DONE;
 
         // No timer interrupts while we perform some cleanup.
-	kthread_set_vtalrm(0);
         gt_spin_lock(&(ksched_shared_info.ksched_lock));
         ksched_shared_info.app_exit = 1;
         gt_spin_unlock(&(ksched_shared_info.ksched_lock));

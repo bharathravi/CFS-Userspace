@@ -7,8 +7,8 @@ extern void kthread_install_sighandler(int signo, void (*handler)(int));
 extern void kthread_block_signal(int signo);
 extern void kthread_unblock_signal(int signo);
 
-#define SCHEDULER_MIN_GRANULARITY_USEC 4000 // 4 milliseconds
-#define SCHEDULER_MIN_LATENCY_USEC 20000  // 20 milliseconds
+#define SCHEDULER_MIN_GRANULARITY_USEC 50000 // 4 milliseconds
+#define SCHEDULER_MIN_LATENCY_USEC 250000  // 20 milliseconds
 
 // Initializes the VTALRM signal when the kthread is created.
 extern void kthread_init_vtalrm();

@@ -21,6 +21,7 @@ typedef struct __kthread_context
 	unsigned int cpu_apic_id;
 	unsigned int pid;
 	unsigned int tid;
+        unsigned int do_not_disturb; // Flag that is used to decide whether or not the kthread can be interrupted by timers.
 
 	unsigned int kthread_flags;
 	void (*kthread_app_func)(void *); /* kthread application function */

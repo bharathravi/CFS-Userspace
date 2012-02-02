@@ -4,6 +4,7 @@
 
 int uthread_fn(void * args) {
   long i,j,k;
+  gt_yield();
   for (i=0;i<100000; ++i) {
     for(j=0; j < 1000 ; ++j) {
    //   for (k=0;k <100000;++k) {
@@ -31,7 +32,7 @@ int main() {
   uthread_t utid[10] = {0,1,2,3,4,5,6,7,8,9,10};
   int i = 0;
   gtthread_app_init();
-  for (i = 0; i < 128; ++i) {
+  for (i = 0; i < 20; ++i) {
     uthread_create(&utid[0], uthread_fn, NULL, 0);
   }
   //uthread_create(&utid[1], uthread_fn2, NULL, 0);
