@@ -298,14 +298,12 @@ rb_red_blk_node* TreeSuccessor(rb_red_blk_tree* tree,rb_red_blk_node* x) {
 
   if (nil != (y = x->right)) { /* assignment to y is intentional */
     while(y->left != nil) { /* returns the minium of the right subtree of x */
-      //printf("L\n");
       y=y->left;
     }
     return(y);
   } else {
     y=x->parent;
     while(x == y->right) { /* sentinel used instead of checking for nil */
-     // printf("R\n");
       x=y;
       y=y->parent;
     }
@@ -580,12 +578,12 @@ void RBDeleteFixUp(rb_red_blk_tree* tree, rb_red_blk_node* x) {
 /*    The algorithm from this function is from _Introduction_To_Algorithms_ */
 /***********************************************************************/
 
-void RBDelete(rb_red_blk_tree* tree, rb_red_blk_node* z) {
+void RBDelete(rb_red_blk_tree* tree, rb_red_blk_node* z){
   rb_red_blk_node* y;
   rb_red_blk_node* x;
   rb_red_blk_node* nil=tree->nil;
   rb_red_blk_node* root=tree->root;
-
+  int oldcolor;
   y= ((z->left == nil) || (z->right == nil)) ? z : TreeSuccessor(tree,z);
   x= (y->left == nil) ? y->right : y->left;
   if (root == (x->parent = y->parent)) { /* assignment of y->p to x->p is intentional */
@@ -600,12 +598,11 @@ void RBDelete(rb_red_blk_tree* tree, rb_red_blk_node* z) {
   if (y != z) { /* y should not be nil in this case */
 
 #ifdef DEBUG_ASSERT
-    Assert( (y!=tree->nil), "y is nil in RBDelete\n");
+    Assert( (y!=tree->nil),"y is nil in RBDelete\n");
 #endif
     /* y is the node to splice out and x is its child */
-
-    if (!(y->red)) RBDeleteFixUp(tree,x);
-  
+ 
+    oldcolor = y->red; 
     tree->DestroyKey(z->key);
     tree->DestroyInfo(z->info);
     y->left=z->left;
@@ -618,11 +615,16 @@ void RBDelete(rb_red_blk_tree* tree, rb_red_blk_node* z) {
     } else {
       z->parent->right=y;
     }
+
+    // If the node we spliced out was black, this needs some fixing
+    if (!oldcolor) RBDeleteFixUp(tree,x);
+    printf("Freeind %d in %d\n", z, tree);
     free(z); 
   } else {
     tree->DestroyKey(y->key);
     tree->DestroyInfo(y->info);
     if (!(y->red)) RBDeleteFixUp(tree,x);
+    printf("Freeind %d in %d\n", y, tree);
     free(y);
   }
   

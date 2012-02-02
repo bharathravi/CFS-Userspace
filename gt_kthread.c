@@ -30,7 +30,6 @@ ksched_shared_info_t ksched_shared_info;
 /* kthread */
 extern int kthread_create(kthread_t *tid, int (*start_fun)(void *), void *arg);
 static int kthread_handler(void *arg);
-static void main_kthread_init(kthread_context_t *k_ctx);
 static void kthread_init(kthread_context_t *k_ctx);
 static void kthread_exit();
 
@@ -39,7 +38,7 @@ static void kthread_exit();
 static inline void ksched_info_init(ksched_shared_info_t *ksched_info);
 static void ksched_priority(int );
 static void ksched_cosched(int );
-extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *);
+extern kthread_context_t *ksched_find_target(uthread_struct_t *);
 
 /**********************************************************************/
 /* gtthread application (over kthreads and uthreads) */
@@ -164,7 +163,7 @@ static inline void KTHREAD_PRINT_SCHED_DEBUGINFO(kthread_context_t *k_ctx, char 
 	return;
 }
 
-extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *u_obj)
+extern kthread_context_t *ksched_find_target(uthread_struct_t *u_obj)
 {
 	ksched_shared_info_t *ksched_info;
 	unsigned int target_cpu, u_gid;
@@ -191,7 +190,7 @@ extern kthread_runqueue_t *ksched_find_target(uthread_struct_t *u_obj)
 	printf("Target uthread (id:%d, group:%d) : cpu(%d)\n", u_obj->uthread_tid, u_obj->uthread_gid, kthread_cpu_map[target_cpu]->cpuid);
 #endif
 
-	return(&(kthread_cpu_map[target_cpu]->krunqueue));
+	return(kthread_cpu_map[target_cpu]);
 }
 
 
@@ -218,6 +217,7 @@ static void ksched_priority(int signo)
 		printf("%d DO NOT DISTURB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", cur_k_ctx->tid);                
 		return;
 	} else {
+		kthread_set_vtalrm(0);
 		cur_k_ctx->do_not_disturb = 1;
         }
 
@@ -337,10 +337,13 @@ extern void gtthread_app_init()
         create_master_uthread(k_ctx_main, master_env);
 
 	kthread_install_sighandler(SIGVTALRM, k_ctx_main->kthread_sched_timer);
-	//kthread_install_sighandler(SIGUSR1, k_ctx_main->kthread_sched_relay);
+
+	// XXX(CFS): SIGUSR1 is used to inform a kthread about the arrival of a new uthread.
+	kthread_install_sighandler(SIGUSR1, k_ctx_main->kthread_sched_timer);
 
 	/* Num of logical processors (cpus/cores) */
 	num_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
+	num_cpus = 2;
 #if 0
 	fprintf(stderr, "Number of cores : %d\n", num_cores);
 #endif
@@ -395,6 +398,7 @@ extern void gtthread_app_exit()
 	/* For main thread, trigger start again. */
 	kthread_context_t *k_ctx;
 
+	kthread_set_vtalrm(0);
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
         k_ctx->do_not_disturb = 1;
 	k_ctx->kthread_flags &= ~KTHREAD_DONE;

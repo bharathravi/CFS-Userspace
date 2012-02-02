@@ -1,7 +1,7 @@
 #ifndef __CFS_RUNQUEUE_H
 #define __CFS_RUNQUEUE_H
 
-#include "red_black_tree.h"
+#include "rb/red_black_tree.h"
 #include "gt_uthread.h"
 
 // Define a period of 200ms

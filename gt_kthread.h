@@ -26,7 +26,7 @@ typedef struct __kthread_context
 	unsigned int kthread_flags;
 	void (*kthread_app_func)(void *); /* kthread application function */
 	void (*kthread_sched_timer)(int); /* vtalrm signal handler */
-	void (*kthread_sched_relay)(int); /* relay(usr1) signal handler*/
+//	void (*kthread_sched_relay)(int); /* relay(usr1) signal handler*/
 
 	void (*kthread_runqueue_balance)(); /* balance across kthread runqueues */
 	sigjmp_buf kthread_env; /* kthread's env to jump to (when done scheduling) */

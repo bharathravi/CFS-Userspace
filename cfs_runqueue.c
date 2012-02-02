@@ -33,7 +33,7 @@ void inline add_to_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t *uthr
 
 // Removes a user thread from the Runqueue
 void inline remove_from_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t *uthread) {
-  rb_red_blk_node* n1, n2;
+  rb_red_blk_node *n1, *deleted;
 
   if (!uthread) {
     return;

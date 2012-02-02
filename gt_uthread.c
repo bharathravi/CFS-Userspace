@@ -127,6 +127,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	/* Signals used for cpu_thread scheduling */
 	// kthread_block_signal(SIGVTALRM);
 	// kthread_block_signal(SIGUSR1);
+	kthread_set_vtalrm(0);
 #if 0
 	fprintf(stderr, "uthread_schedule invoked !!\n");
 #endif
@@ -150,7 +151,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				gt_spin_unlock(&ksched_info->ksched_lock);
 			}
 		} else if (u_obj->uthread_state & UTHREAD_YIELD) {
-			printf("%d gave up the CPU\n", u_obj->uthread_tid);
 			update_vruntime_to_max(u_obj, kthread_runq->runqueue);
 			u_obj->uthread_state = UTHREAD_RUNNABLE;
 			add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_obj);
@@ -169,6 +169,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 
 //	printf("%d still here\n", k_ctx->tid);
 	/* kthread_best_sched_uthread acquires kthread_runqlock. Dont lock it up when calling the function. */
+//        printf("%d searching in %d\n", k_ctx->tid, kthread_runq->runqueue->tree);
 	if(!(u_obj = kthread_best_sched_uthread(kthread_runq)))
 	{
 		/* Done executing all uthreads. Return to main */
@@ -193,7 +194,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	    //    printf("%d leaving\n", k_ctx->tid);
 		siglongjmp(k_ctx->kthread_env, 1);
 	}
-      //  printf("%d chose %d\n", k_ctx->tid, u_obj->uthread_tid);
+//        printf("%d chose %d in %d %d %d\n", k_ctx->tid, u_obj->uthread_tid, kthread_runq->runqueue->tree, u_obj->node, kthread_runq->runqueue->tree->nil);
        
 	kthread_runq->cur_uthread = u_obj;
 	if((u_obj->uthread_state == UTHREAD_INIT) && (uthread_init(u_obj)))
@@ -219,7 +220,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	kthread_set_vtalrm(fair_slice);
         k_ctx->do_not_disturb = 0;
         //printf("%d leaving to %d at %d %d\n", k_ctx->tid, u_obj->uthread_tid, now.tv_sec, now.tv_usec);
-//	printf("%d leaving to %d\n", k_ctx->tid, u_obj->uthread_tid);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;
@@ -242,7 +242,6 @@ extern void gt_yield() {
 
   // Set state to UTHREAD_YIELD
   cur_uthread->uthread_state = UTHREAD_YIELD;
-  printf("Yielding\n");
   uthread_schedule(&sched_find_best_uthread);
 }
 
@@ -277,10 +276,10 @@ static void uthread_context_func(int signo)
 	cur_uthread->uthread_func(cur_uthread->uthread_arg);
 	
 	//XXX(CFS): Go directly to scheduler without being interrupted
+	kthread_set_vtalrm(0);
 	kthread_cpu_map[kthread_apic_id()]->do_not_disturb = 1;
 	cur_uthread->uthread_state = UTHREAD_DONE;
 
-        printf("%d is done on %d\n", cur_uthread->uthread_tid, kthread_cpu_map[kthread_apic_id()]->tid);
 	uthread_schedule(&sched_find_best_uthread);
 	return;
 }
@@ -294,11 +293,13 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 {
 	kthread_runqueue_t *kthread_runq;
 	uthread_struct_t *u_new;
+	kthread_context_t *kctx, *target_ctx;
 
 	/* Signals used for cpu_thread scheduling */
 	// kthread_block_signal(SIGVTALRM);
 	// kthread_block_signal(SIGUSR1);
-	kthread_cpu_map[kthread_apic_id()]->do_not_disturb = 1;
+	kctx = kthread_cpu_map[kthread_apic_id()];
+	kctx->do_not_disturb = 1;
 
 	/* create a new uthread structure and fill it */
 	if(!(u_new = (uthread_struct_t *)MALLOCZ_SAFE(sizeof(uthread_struct_t))))
@@ -311,7 +312,10 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	u_new->uthread_gid = u_gid;
 	u_new->uthread_func = u_func;
 	u_new->uthread_arg = u_arg;
-        u_new->vruntime = 0;
+
+	//XXX(CFS): The new uthread "adopts" the vruntime of its parent,
+	// which in this case, is simply the "master thread".
+        u_new->vruntime = kctx->master_thread->vruntime;
         u_new->nice = DEFAULT_NICE_VALUE;
 
 	/* Allocate new stack for uthread */
@@ -333,14 +337,18 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 		gt_spin_unlock(&ksched_info->ksched_lock);
 	}
 
-	/* XXX: ksched_find_target should be a function pointer */
-	kthread_runq = ksched_find_target(u_new);
+		/* XXX: ksched_find_target should be a function pointer */
+	target_ctx = ksched_find_target(u_new);
+	kthread_runq = &(target_ctx->krunqueue);
 
 	*u_tid = u_new->uthread_tid;
         printf("Adding %d to %d\n", u_new->uthread_tid, kthread_runq);
 	/* Queue the uthread for target-cpu. Let target-cpu take care of initialization. */
 	add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_new);
 
+	//XXX(CFS): Inform the target kthread that a new uthread has been added to it,
+	// by triggering SIGUSR1
+	syscall(__NR_tkill, target_ctx->tid, SIGUSR1);
 
 	/* WARNING : DONOT USE u_new WITHOUT A LOCK, ONCE IT IS ENQUEUED. */
 
