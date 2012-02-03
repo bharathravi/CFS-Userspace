@@ -32,7 +32,7 @@ extern int kthread_create(kthread_t *tid, int (*start_fun)(void *), void *arg);
 static int kthread_handler(void *arg);
 static void kthread_init(kthread_context_t *k_ctx);
 static void kthread_exit();
-
+static void print_statistics();
 /**********************************************************************/
 /* kthread schedule */
 static inline void ksched_info_init(ksched_shared_info_t *ksched_info);
@@ -93,6 +93,36 @@ static int kthread_handler(void *arg)
 }
 
 
+static char* tid_to_filename(unsigned int n) {
+  int size=0, i, j;
+  char* c;
+  i = n;
+  //calculate size of the string
+  do {
+    size++;
+    i = i/10;
+  } while(i > 0);
+
+  printf("%d ", size);
+  c = malloc(sizeof(char)*(size+4));
+
+  i = n;
+  j = 0;
+  do {
+    c[size - j -1] = i%10 + 48;
+    i = i/10;
+    j++;
+  } while(j < size);
+
+  c[size] = '.';
+  c[size + 1] = 't';
+  c[size + 2] = 'x';
+  c[size + 3] = 't';
+
+  return c;
+}
+
+
 static void kthread_init(kthread_context_t *k_ctx)
 {
 	int cpu_affinity_mask, cur_cpu_apic_id;
@@ -112,10 +142,13 @@ static void kthread_init(kthread_context_t *k_ctx)
         
         //XXX(CFS): Slave kernel threads do not own a master thread of their own.
         k_ctx->master_thread = NULL;
-
+	
 	//XXX(CFS): We do not want to be interrupted by timers at the beginning.
         k_ctx->do_not_disturb = 1;
 
+	//XXX(CFS): Initialize a log file with the tid of this kthread
+	char *tid_string = tid_to_filename(k_ctx->tid);
+	k_ctx->log = fopen(tid_string, "a");
             
 	/* Initialize kthread runqueue */
 
@@ -136,6 +169,7 @@ static void kthread_init(kthread_context_t *k_ctx)
 
 static inline void kthread_exit()
 {
+	fclose(kthread_cpu_map[kthread_apic_id()]->log);
 	return;
 }
 /**********************************************************************/
@@ -279,6 +313,7 @@ static void create_master_uthread(kthread_context_t* master_context, sigjmp_buf 
         u_new->uthread_arg = NULL;
         u_new->vruntime = 0;
         u_new->nice = DEFAULT_NICE_VALUE;
+	gettimeofday(&(u_new->entry_to_cpu), 0);
 
         /* Allocate new stack for uthread */
         u_new->uthread_stack.ss_flags = 0; /* Stack enabled for signal handling */
@@ -384,7 +419,7 @@ extern void gtthread_app_exit()
 	/* gtthread_app_exit called by only main thread. */
 	/* For main thread, trigger start again. */
 	kthread_context_t *k_ctx;
-
+	int i=0;
 	kthread_set_vtalrm(0);
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
         k_ctx->do_not_disturb = 1;
@@ -416,13 +451,35 @@ extern void gtthread_app_exit()
 	}
        printf("Last mile for main\n");
 
-
 	while(ksched_shared_info.kthread_cur_uthreads)
 	{
 		/* Main thread has to wait for other kthreads */
 		__asm__ __volatile__ ("pause\n");
 	}
+	fclose(k_ctx->log);
+	print_statistics();
 	return;	
+}
+
+static void print_statistics() {
+  int times[4][32][2];
+  int i, j;
+  FILE* p;
+  char line[50], c;
+  // For each kthread, open up its log file and parse it
+  for(i = 0; i < GT_MAX_CORES; ++i) {
+    if(kthread_cpu_map[i]) {
+      p = fopen(kthread_cpu_map[i]->log,"r");
+      while(!feof(p)) {
+        j = 0;
+        // Read a line from the file;
+        while((c=fgetc(p) != '\n')) {
+          line[j] = c;
+          j++;
+        }  
+      }
+    }
+  }
 }
 
 /**********************************************************************/

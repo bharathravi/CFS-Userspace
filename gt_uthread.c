@@ -28,7 +28,8 @@ static void uthread_context_func(int);
 static int uthread_init(uthread_struct_t *u_new);
 
 /********* CFS Accounting ********/
-static inline void update_vruntime(uthread_struct_t* uthread);
+static inline void update_vruntime(uthread_struct_t* uthread, kthread_context_t *kctx);
+static inline unsigned long get_time_delta(uthread_struct_t* uthread);
 static inline void update_vruntime_to_max(uthread_struct_t* uthread, cfs_runqueue_t *runqueue);
 static inline long get_fair_slice(uthread_struct_t* uthread, cfs_runqueue_t * runqueue);
 static inline long get_fair_period(cfs_runqueue_t* runqueue);
@@ -136,7 +137,10 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		kthread_runq->cur_uthread = NULL;
 		
 		if(u_obj->uthread_state & (UTHREAD_DONE | UTHREAD_CANCELLED))
-		{   
+		{
+			//XXX(CFS): If the thread is done, log its total runtime to a file.
+			update_vruntime(u_obj, k_ctx);
+			fprintf(k_ctx->log, "0 %d %d %d\n", u_obj->uthread_tid, u_obj->uthread_gid, u_obj->vruntime);   
 			{
 				ksched_shared_info_t *ksched_info = &ksched_shared_info;	
 				gt_spin_lock(&ksched_info->ksched_lock);
@@ -151,7 +155,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 				return;
 
                 } else {
-                        update_vruntime(u_obj);
+                        update_vruntime(u_obj, k_ctx);
 			u_obj->uthread_state = UTHREAD_RUNNABLE;
 			add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_obj);
 			/* XXX: Save the context (signal mask not saved) */
@@ -191,8 +195,9 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
         fair_slice = get_fair_slice(u_obj, kthread_runq->runqueue);
 	// Record time of entry to CPU
 	gettimeofday(&now, 0);
-	u_obj->entry_to_cpu = now;
-
+	u_obj->entry_to_cpu.tv_sec = now.tv_sec;
+	u_obj->entry_to_cpu.tv_usec = now.tv_usec;
+	printf("%d %d\n", u_obj->entry_to_cpu.tv_sec, u_obj->entry_to_cpu.tv_usec);
 	// Jump to the selected uthread context
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_set_vtalrm(fair_slice);
@@ -292,7 +297,11 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 
 	//XXX(CFS): The new uthread "adopts" the vruntime of its parent,
 	// which in this case, is simply the "master thread".
-        u_new->vruntime = kctx->master_thread->vruntime;
+	if (kctx->master_thread) {
+        	u_new->vruntime = kctx->master_thread->vruntime;
+	} else { 
+	        u_new->vruntime = get_time_delta(kctx->master_thread);
+	}
         u_new->nice = DEFAULT_NICE_VALUE;
 
 	/* Allocate new stack for uthread */
@@ -339,7 +348,7 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 /******* Private functions for CFS accounting **************/
 //XXX(CFS) Calculates the amount of time a thread spent of CPU, by taking the difference
 // between current time and the time it entered the CPU.
-static inline void update_vruntime(uthread_struct_t* uthread) {
+static inline void update_vruntime(uthread_struct_t* uthread, kthread_context_t *kctx) {
   int secs, usecs;
   struct timeval now;
 
@@ -348,7 +357,22 @@ static inline void update_vruntime(uthread_struct_t* uthread) {
   secs = now.tv_sec - uthread->entry_to_cpu.tv_sec;
   usecs = now.tv_usec - uthread->entry_to_cpu.tv_usec;
 
+  // XXX(CFS): Log runtime of this thread to file.
+  fprintf(kctx->log, "1 %d %d %d\n", uthread->uthread_tid, uthread->uthread_gid, secs*1000000 + usecs);
+  
   uthread->vruntime += secs*1000000 + usecs;
+}
+
+static inline unsigned long get_time_delta(uthread_struct_t* uthread) {
+  int secs, usecs;
+  struct timeval now;
+
+  gettimeofday(&now, 0);
+
+  secs = now.tv_sec - uthread->entry_to_cpu.tv_sec;
+  usecs = now.tv_usec - uthread->entry_to_cpu.tv_usec;
+
+  return secs*1000000 + usecs;
 }
 
 

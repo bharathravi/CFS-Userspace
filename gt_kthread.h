@@ -37,6 +37,7 @@ typedef struct __kthread_context
         uthread_struct_t* master_thread;
 
 	kthread_runqueue_t krunqueue;
+	FILE* log;
 } kthread_context_t;
 
 

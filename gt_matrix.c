@@ -170,7 +170,7 @@ int main()
 
 			uarg->tid = inx;
 
-			uarg->gid = 0;  // All in the same griup
+			uarg->gid = i;  // Every matrix in a different group
                         uarg->matrix_size = sizes[i];
 
 			uarg->start_row = (inx * sizes[i]/NUM_THREADS);
