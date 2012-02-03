@@ -476,9 +476,53 @@ static void print_statistics() {
         while((c=fgetc(p) != '\n')) {
           line[j] = c;
           j++;
-        }  
+        }
+        line[j] = '\0';
+        parse_line(line, times);  
       }
     }
+  }
+}
+
+void parse_line(char* line, int*** times) {
+  int len = strlen(line);
+  int i, j, tid=0, gid=0;
+  unsigned long runtime = 0;
+  char c, word[50];
+  
+  // Get thread ID
+  i = 2; j = 0;
+  while(line[i] != ' ') {
+    tid *= 10;
+    tid += (line[i] - 48); 
+    i++;
+  }
+  
+  i++;
+
+  // Get group ID
+  while(line[i] != ' ') {
+    gid *= 10;
+    gid += (line[i] - 48); 
+    i++;
+  }
+
+  i++;
+  
+  // Get runtime
+  while(line[i] != ' ') {
+    runtime *= 10;
+    runtime += (line[i] - 48); 
+    i++;
+  }
+
+  // Store values
+  if(line[0] == '1') {
+    // Delta runtime
+    times[gid][tid][1] += 1;
+  } else if (line[0] == '0') {
+    // Total runtime
+    times[gid][tid][1] = runtime;
   }
 }
 
