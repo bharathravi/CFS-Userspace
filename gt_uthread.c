@@ -233,7 +233,7 @@ static void uthread_context_func(int signo)
 
 	kthread_runq = &(kthread_cpu_map[kthread_apic_id()]->krunqueue);
 
-	//printf("..... Initializing uthread_context_func for %d .....\n",kthread_runq->cur_uthread->uthread_tid);
+//	printf("..... Initializing uthread_context_func for %d .....\n",kthread_runq->cur_uthread->uthread_tid);
 	/* kthread->cur_uthread points to newly created uthread */
 	if(!sigsetjmp(kthread_runq->cur_uthread->uthread_env,0))
 	{
@@ -245,7 +245,7 @@ static void uthread_context_func(int signo)
 		return;
 	}
 
-	//printf("..... Actual uthread_context_func .....for %d\n", kthread_runq->cur_uthread->uthread_tid);
+//	printf("..... Actual uthread_context_func .....for %d\n", kthread_runq->cur_uthread->uthread_tid);
 	/* UTHREAD_RUNNING : siglongjmp was executed. */
 	cur_uthread = kthread_runq->cur_uthread;
 	assert(cur_uthread->uthread_state == UTHREAD_RUNNING);

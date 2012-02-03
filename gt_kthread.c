@@ -208,13 +208,10 @@ static void ksched_priority(int signo)
 	int inx;
         struct timeval now;
 
-	// kthread_block_signal(SIGVTALRM);
-	// kthread_block_signal(SIGUSR1);
 	cur_k_ctx = kthread_cpu_map[kthread_apic_id()];
 
 	if (cur_k_ctx->do_not_disturb) {
-		// If the kthread is in a situation wher it should not be interrupted, simply return.
-		printf("%d DO NOT DISTURB!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", cur_k_ctx->tid);                
+		// If the kthread is in a situation where it should not be interrupted, simply return.
 		return;
 	} else {
 		kthread_set_vtalrm(0);
@@ -222,12 +219,9 @@ static void ksched_priority(int signo)
         }
 
 	gettimeofday(&now, 0);
-   //     printf("Timer for %d at %d %d\n", cur_k_ctx->tid, now.tv_sec, now.tv_usec);
 
 	uthread_schedule(&sched_find_best_uthread);
 
-	// kthread_unblock_signal(SIGVTALRM);
-	// kthread_unblock_signal(SIGUSR1);
 	return;
 }
 
@@ -244,7 +238,6 @@ static void gtthread_app_start(void *arg)
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
 	assert((k_ctx->cpu_apic_id == kthread_apic_id()));
   
-        printf("%d starting\n", k_ctx->tid);
 	while(!(k_ctx->kthread_flags & KTHREAD_DONE))
 	{
 		__asm__ __volatile__ ("pause\n");
@@ -253,9 +246,6 @@ static void gtthread_app_start(void *arg)
 			/* siglongjmp to this point is done when there
 			 * are no more uthreads to schedule.*/
 			/* XXX: gtthread app cleanup has to be done. */
-                        if(k_ctx->kthread_flags & KTHREAD_DONE) {
-                         printf("Child done\n");
-                        }
 			continue;
 		}
 		uthread_schedule(&sched_find_best_uthread);
@@ -276,7 +266,6 @@ static void create_master_uthread(kthread_context_t* master_context, sigjmp_buf 
         // kthread_block_signal(SIGVTALRM);
         // kthread_block_signal(SIGUSR1);
 
-        printf("creating\n");
         /* create a new uthread structure and fill it */
         if(!(u_new = (uthread_struct_t *)MALLOCZ_SAFE(sizeof(uthread_struct_t))))
         {
@@ -343,7 +332,6 @@ extern void gtthread_app_init()
 
 	/* Num of logical processors (cpus/cores) */
 	num_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
-	num_cpus = 4;
 #if 0
 	fprintf(stderr, "Number of cores : %d\n", num_cores);
 #endif
@@ -385,7 +373,6 @@ yield_again:
 	/* app-func is called for main in gthread_app_exit */
 	k_ctx_main->kthread_app_func(NULL);
 #endif
-        printf("Init done\n");
         // Now, the main kthread is done with setup, and is okay with being interrupted.
         k_ctx_main->do_not_disturb = 0;
 	kthread_init_vtalrm();        
@@ -431,11 +418,10 @@ extern void gtthread_app_exit()
 
 
 	while(ksched_shared_info.kthread_cur_uthreads)
-	{    //printf("Waiting for others\n");
+	{
 		/* Main thread has to wait for other kthreads */
 		__asm__ __volatile__ ("pause\n");
 	}
-        printf("I'm home free %d\n", ksched_shared_info.kthread_tot_uthreads);
 	return;	
 }
 
