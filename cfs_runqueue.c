@@ -43,12 +43,12 @@ void inline remove_from_cfs_runqueue(cfs_runqueue_t *runqueue, uthread_struct_t 
   // to the new min, since we're extracting this one.
   if (runqueue->min == uthread) {
     // Update min, since we're going to extract this one.
-    n1 = runqueue->min->node;
+    n1 = TreeSuccessor(runqueue->tree, uthread->node);
 
-    if (n1->parent != runqueue->tree->root) {
-      runqueue->min = (uthread_struct_t *)n1->parent->key;      
+    if (n1 != runqueue->tree->nil) {
+      runqueue->min = (uthread_struct_t *)n1->key;      
     } else { 
-      runqueue->min = (uthread_struct_t *)n1->right->key;      
+      runqueue->min = NULL;      
     }
   }
   RBDelete(runqueue->tree , uthread->node);
@@ -94,8 +94,7 @@ int compare_virtual_runtimes(const void* a,const void* b) {
 
 
 void destroy_node(void* a) {
-  uthread_struct_t *uthread = (uthread_struct_t *)a;
-  uthread->node = NULL;  
+  //Do nothing
 }
 
 
@@ -116,21 +115,20 @@ static inline uthread_struct_t* get_leftmost(rb_red_blk_tree* tree) {
   rb_red_blk_node* parent = NULL;
   uthread_struct_t *debug;
 
-  if (!tree || !tree->root || !tree->root->left) {
+  if (!tree || !tree->root || !tree->root->left || tree->root->left==tree->nil) {
     // Check for bad trees
     return NULL;
   }
 
-  node = tree->root->left;
+  if(tree->nil == (node = tree->root->left)) {
+    return NULL;
+  }
 
   do {
     parent = node;
     node = node->left;
   } while(node!=tree->nil);
   
-  if (parent == tree->nil) {
-    return NULL;
-  }
   return (uthread_struct_t *)parent->key;
 }
 
@@ -139,10 +137,11 @@ static inline uthread_struct_t* get_rightmost(rb_red_blk_tree* tree) {
   rb_red_blk_node* parent = NULL;
   uthread_struct_t *debug;
 
-  if (!tree || !tree->root || !tree->root->left) {
+   if (!tree || !tree->root || !tree->root->left || tree->root->left==tree->nil) {
     // Check for bad trees
     return NULL;
   }
+
 
   node = tree->root->left;
 
@@ -165,7 +164,7 @@ void print_all(rb_red_blk_node* node, rb_red_blk_tree* tree) {
   }
   printf("L");print_all(node->left, tree);
   t = (uthread_struct_t *) node->key;
-  printf("T%d ", t->uthread_tid);
+  printf("T%d ", node);
   printf("R");print_all(node->right, tree);
 }
 

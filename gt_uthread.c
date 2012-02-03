@@ -124,19 +124,12 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
         int i=0;
 	kthread_context_t *debug;
 
-	/* Signals used for cpu_thread scheduling */
-	// kthread_block_signal(SIGVTALRM);
-	// kthread_block_signal(SIGUSR1);
 	kthread_set_vtalrm(0);
-#if 0
-	fprintf(stderr, "uthread_schedule invoked !!\n");
-#endif
 
 	k_ctx = kthread_cpu_map[kthread_apic_id()];
         k_ctx->do_not_disturb = 1;
 	kthread_runq = &(k_ctx->krunqueue);
 
-        //printf("%d entering\n", k_ctx->tid);
 	if((u_obj = kthread_runq->cur_uthread))
 	{       gettimeofday(&d,0);
 		/*Go through the runq and schedule the next thread to run */
@@ -167,9 +160,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		}
 	}
 
-//	printf("%d still here\n", k_ctx->tid);
 	/* kthread_best_sched_uthread acquires kthread_runqlock. Dont lock it up when calling the function. */
-//        printf("%d searching in %d\n", k_ctx->tid, kthread_runq->runqueue->tree);
 	if(!(u_obj = kthread_best_sched_uthread(kthread_runq)))
 	{
 		/* Done executing all uthreads. Return to main */
@@ -177,24 +168,11 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		if(ksched_shared_info.app_exit)
 		{
 			fprintf(stderr, "Quitting kthread (%d) with globals:%d\n", k_ctx->cpuid, ksched_shared_info.kthread_cur_uthreads);
-			//for (i=0; i <GT_MAX_CORES; ++i) {
-			//    if(kthread_cpu_map[i]) {
-			//	debug = kthread_cpu_map[i];
-                                //printf("%d Cur: %d\n", debug->tid, debug->krunqueue.cur_uthread);
-                                //if (debug->krunqueue.cur_uthread) {
-                                //  printf("%d Cur2: %d\n", debug->tid, debug->krunqueue.cur_uthread->uthread_tid);
-                               // }
-			//	print_all(debug->krunqueue.runqueue->tree->root->left,debug->krunqueue.runqueue->tree);
-                        //    }
-                //        }
-                        
 			k_ctx->kthread_flags |= KTHREAD_DONE;
 		}
                  
-	    //    printf("%d leaving\n", k_ctx->tid);
 		siglongjmp(k_ctx->kthread_env, 1);
 	}
-//        printf("%d chose %d in %d %d %d\n", k_ctx->tid, u_obj->uthread_tid, kthread_runq->runqueue->tree, u_obj->node, kthread_runq->runqueue->tree->nil);
        
 	kthread_runq->cur_uthread = u_obj;
 	if((u_obj->uthread_state == UTHREAD_INIT) && (uthread_init(u_obj)))
@@ -219,7 +197,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_set_vtalrm(fair_slice);
         k_ctx->do_not_disturb = 0;
-        //printf("%d leaving to %d at %d %d\n", k_ctx->tid, u_obj->uthread_tid, now.tv_sec, now.tv_usec);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;
@@ -342,7 +319,6 @@ extern int uthread_create(uthread_t *u_tid, int (*u_func)(void *), void *u_arg, 
 	kthread_runq = &(target_ctx->krunqueue);
 
 	*u_tid = u_new->uthread_tid;
-        printf("Adding %d to %d\n", u_new->uthread_tid, kthread_runq);
 	/* Queue the uthread for target-cpu. Let target-cpu take care of initialization. */
 	add_to_runqueue(kthread_runq->runqueue, &(kthread_runq->kthread_runqlock), u_new);
 
@@ -371,7 +347,6 @@ static inline void update_vruntime(uthread_struct_t* uthread) {
 
   secs = now.tv_sec - uthread->entry_to_cpu.tv_sec;
   usecs = now.tv_usec - uthread->entry_to_cpu.tv_usec;
-  //printf("%d has run for %d, %d\n", uthread->uthread_tid, secs, usecs);
 
   uthread->vruntime += secs*1000000 + usecs;
 }
@@ -414,7 +389,6 @@ static inline long get_fair_slice(uthread_struct_t* uthread, cfs_runqueue_t * ru
   long period = get_fair_period(runqueue);
   int num_threads = runqueue->num_threads + 1;
   int nice_value = uthread->nice;
-  //printf("Slice for %d %d out of %d\n", uthread->uthread_tid, period * nice_value / num_threads, period);
   return period * nice_value / num_threads;
 }
 

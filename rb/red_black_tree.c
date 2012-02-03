@@ -618,13 +618,13 @@ void RBDelete(rb_red_blk_tree* tree, rb_red_blk_node* z){
 
     // If the node we spliced out was black, this needs some fixing
     if (!oldcolor) RBDeleteFixUp(tree,x);
-    printf("Freeind %d in %d\n", z, tree);
+    //printf("Freeind %d in %d\n", z, tree);
     free(z); 
   } else {
     tree->DestroyKey(y->key);
     tree->DestroyInfo(y->info);
     if (!(y->red)) RBDeleteFixUp(tree,x);
-    printf("Freeind %d in %d\n", y, tree);
+    //printf("Freeind %d in %d\n", y, tree);
     free(y);
   }
   

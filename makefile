@@ -2,7 +2,7 @@
 #all : cfs_runqueue.c cfs_runqueue.h gt_pq.c gt_pq.h gt_signal.h gt_signal.c gt_spinlock.h gt_spinlock.c gt_matrix.c
 all: rb/misc.c  rb/red_black_tree.c  rb/stack.c
 	@echo Building...
-	@gcc -g -o matrix test_creation.c cfs_runqueue.c  gt_kthread.c gt_pq.c gt_signal.c gt_spinlock.c gt_uthread.c rb/misc.c rb/red_black_tree.c rb/stack.c
+	@gcc -g -o matrix gt_matrix.c cfs_runqueue.c  gt_kthread.c gt_pq.c gt_signal.c gt_spinlock.c gt_uthread.c rb/misc.c rb/red_black_tree.c rb/stack.c
 	@echo Done!
 	@echo Now run './matrix'
 

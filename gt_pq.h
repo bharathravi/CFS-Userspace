@@ -72,7 +72,6 @@ typedef struct __kthread_runqueue
 /* only lock protected versions are exported */
 extern void init_runqueue(cfs_runqueue_t *runq);
 extern void add_to_runqueue(cfs_runqueue_t *runq, gt_spinlock_t *runq_lock, uthread_struct_t *u_elem);
-extern void rem_from_runqueue(cfs_runqueue_t *runq, gt_spinlock_t *runq_lock, uthread_struct_t *u_elem);
 
 
 /* kthread runqueue */

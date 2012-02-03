@@ -343,7 +343,7 @@ extern void gtthread_app_init()
 
 	/* Num of logical processors (cpus/cores) */
 	num_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
-	num_cpus = 2;
+	num_cpus = 4;
 #if 0
 	fprintf(stderr, "Number of cores : %d\n", num_cores);
 #endif

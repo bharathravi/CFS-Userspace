@@ -29,15 +29,6 @@ extern void add_to_runqueue(cfs_runqueue_t *runqueue, gt_spinlock_t *runq_lock, 
   return;
 }
 
-extern void rem_from_runqueue(cfs_runqueue_t *runqueue, gt_spinlock_t *runq_lock, uthread_struct_t *uthread)
-{
-  gt_spin_lock(runq_lock);
-  runq_lock->holder = 0x03;
-  remove_from_cfs_runqueue(runqueue, uthread);
-  gt_spin_unlock(runq_lock);
-  return;
-}
-
 
 /**********************************************************************/
 

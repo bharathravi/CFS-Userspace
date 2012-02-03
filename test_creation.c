@@ -4,7 +4,7 @@
 
 int uthread_fn(void * args) {
   long i,j,k;
-  gt_yield();
+//  gt_yield();
   for (i=0;i<100000; ++i) {
     for(j=0; j < 1000 ; ++j) {
    //   for (k=0;k <100000;++k) {
