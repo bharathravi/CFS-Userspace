@@ -246,13 +246,14 @@ static void ksched_priority(int signo)
 
 	if (cur_k_ctx->do_not_disturb) {
 		// If the kthread is in a situation where it should not be interrupted, simply return.
+		printf("Do not disturb %d\n", cur_k_ctx->tid);
 		return;
 	} else {
 		kthread_set_vtalrm(0);
 		cur_k_ctx->do_not_disturb = 1;
         }
 
-	gettimeofday(&now, 0);
+	printf("Timer for %d\n", cur_k_ctx->tid);
 
 	uthread_schedule(&sched_find_best_uthread);
 

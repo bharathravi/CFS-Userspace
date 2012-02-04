@@ -131,6 +131,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
         k_ctx->do_not_disturb = 1;
 	kthread_runq = &(k_ctx->krunqueue);
 
+	//printf("%d entering\n", k_ctx->tid);
 	if((u_obj = kthread_runq->cur_uthread))
 	{       gettimeofday(&d,0);
 		/*Go through the runq and schedule the next thread to run */
@@ -140,7 +141,7 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 		{
 			//XXX(CFS): If the thread is done, log its total runtime to a file.
 			update_vruntime(u_obj, k_ctx);
-			fprintf(k_ctx->log, "0 %d %d %d\n", u_obj->uthread_tid, u_obj->uthread_gid, u_obj->vruntime);   
+			fprintf(k_ctx->log, "0 %d %d %lu\n", u_obj->uthread_tid, u_obj->uthread_gid, u_obj->vruntime);   
 			{
 				ksched_shared_info_t *ksched_info = &ksched_shared_info;	
 				gt_spin_lock(&ksched_info->ksched_lock);
@@ -201,6 +202,8 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_set_vtalrm(fair_slice);
         k_ctx->do_not_disturb = 0;
+
+	//printf("%d jumping to %d\n", k_ctx->tid, u_obj->uthread_tid);
 	siglongjmp(u_obj->uthread_env, 1);
 
 	return;
@@ -260,7 +263,7 @@ static void uthread_context_func(int signo)
 	kthread_set_vtalrm(0);
 	kthread_cpu_map[kthread_apic_id()]->do_not_disturb = 1;
 	cur_uthread->uthread_state = UTHREAD_DONE;
-
+	printf("%d done in %d\n", cur_uthread->uthread_tid, kthread_cpu_map[kthread_apic_id()]->tid);;
 	uthread_schedule(&sched_find_best_uthread);
 	return;
 }
@@ -356,14 +359,15 @@ static inline void update_vruntime(uthread_struct_t* uthread, kthread_context_t 
   secs = now.tv_sec - uthread->entry_to_cpu.tv_sec;
   usecs = now.tv_usec - uthread->entry_to_cpu.tv_usec;
 
+  printf("%d Ran for %lu on %d\n", uthread->uthread_tid, secs*1000000 + usecs, kctx->tid);
   // XXX(CFS): Log runtime of this thread to file.
-  fprintf(kctx->log, "1 %d %d %d\n", uthread->uthread_tid, uthread->uthread_gid, secs*1000000 + usecs);
+  fprintf(kctx->log, "1 %d %d %lu\n", uthread->uthread_tid, uthread->uthread_gid, secs*1000000 + usecs);
   
   uthread->vruntime += secs*1000000 + usecs;
 }
 
 static inline unsigned long get_time_delta(uthread_struct_t* uthread) {
-  int secs, usecs;
+  long secs, usecs;
   struct timeval now;
 
   gettimeofday(&now, 0);
