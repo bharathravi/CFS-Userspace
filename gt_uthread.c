@@ -197,7 +197,6 @@ extern void uthread_schedule(uthread_struct_t * (*kthread_best_sched_uthread)(kt
 	gettimeofday(&now, 0);
 	u_obj->entry_to_cpu.tv_sec = now.tv_sec;
 	u_obj->entry_to_cpu.tv_usec = now.tv_usec;
-	printf("%d %d\n", u_obj->entry_to_cpu.tv_sec, u_obj->entry_to_cpu.tv_usec);
 	// Jump to the selected uthread context
 	kthread_install_sighandler(SIGVTALRM, k_ctx->kthread_sched_timer);
 	kthread_set_vtalrm(fair_slice);

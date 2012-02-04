@@ -457,10 +457,9 @@ extern void gtthread_app_exit()
 		__asm__ __volatile__ ("pause\n");
 	}
 	fclose(k_ctx->log);
-	print_statistics();
 	return;	
 }
-
+/*
 static void print_statistics() {
   int times[4][32][2];
   int i, j;
@@ -525,7 +524,7 @@ void parse_line(char* line, int*** times) {
     times[gid][tid][1] = runtime;
   }
 }
-
+*/
 /**********************************************************************/
 /* Main Test */
 
